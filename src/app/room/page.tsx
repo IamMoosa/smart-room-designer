@@ -22,58 +22,43 @@ type RoomDesignerProps = {
 export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: propRoomHeight, initialFurniture: propFurniture }: RoomDesignerProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     // Room boundary (fixed size, centered or from props)
-    const roomWidth = propRoomWidth ?? 600;
-    const roomHeight = propRoomHeight ?? 400;
-    const [canvasSize, setCanvasSize] = useState({ width: 900, height: 600 });
-    const roomX = (canvasSize.width - roomWidth) / 2;
-    const roomY = (canvasSize.height - roomHeight) / 2;
+    const gridSize = 50;
+    // Ensure room and canvas are multiples of gridSize
+    const roomWidth = Math.ceil((propRoomWidth ?? 800) / gridSize) * gridSize;
+    const roomHeight = Math.ceil((propRoomHeight ?? 500) / gridSize) * gridSize;
+    const [canvasSize, setCanvasSize] = useState({
+      width: roomWidth + gridSize * 6,
+      height: roomHeight + gridSize * 6,
+    });
+    const roomX = Math.round((canvasSize.width - roomWidth) / 2 / gridSize) * gridSize;
+    const roomY = Math.round((canvasSize.height - roomHeight) / 2 / gridSize) * gridSize;
 
     // Predefined furniture pieces or from props
-    const defaultFurniture: RoomObject[] = [
-      {
-        id: "bed",
-        x: roomX + 50,
-        y: roomY + 50,
-        w: 150,
-        h: 80,
-        color: "#f28b82",
-        label: "Bed",
-        rotation: 0,
-      },
-      {
-        id: "sofa",
-        x: roomX + 250,
-        y: roomY + 60,
-        w: 120,
-        h: 60,
-        color: "#fbbc04",
-        label: "Sofa",
-        rotation: 0,
-      },
-      {
-        id: "table",
-        x: roomX + 200,
-        y: roomY + 200,
-        w: 100,
-        h: 100,
-        color: "#34a853",
-        label: "Table",
-        rotation: 0,
-      },
-    ];
+    // Place furniture in a grid pattern, support many pieces
+    const defaultFurniture: RoomObject[] = Array.from({ length: 10 }).map((_, i) => ({
+      id: `furniture${i}`,
+      x: roomX + gridSize + (i % 5) * gridSize * 2,
+      y: roomY + gridSize + Math.floor(i / 5) * gridSize * 3,
+      w: gridSize * (i % 2 === 0 ? 2 : 1),
+      h: gridSize * (i % 3 === 0 ? 2 : 1),
+      color: `hsl(${i * 36}, 70%, 60%)`,
+      label: `Item ${i + 1}`,
+      rotation: 0,
+    }));
     const [objects, setObjects] = useState<RoomObject[]>(
       propFurniture
         ? propFurniture.map((f, i) => ({
             ...f,
-            x: roomX + 50 + i * 60,
-            y: roomY + 50 + i * 40,
+            x: roomX + gridSize + (i % 5) * gridSize * 2,
+            y: roomY + gridSize + Math.floor(i / 5) * gridSize * 3,
+            w: Math.ceil((f.w ?? gridSize * 2) / gridSize) * gridSize,
+            h: Math.ceil((f.h ?? gridSize * 1) / gridSize) * gridSize,
             rotation: 0,
           } as RoomObject))
         : defaultFurniture
     );
     const [dragging, setDragging] = useState<DraggingObject | null>(null);
     const [history, setHistory] = useState<RoomObject[][]>([]);
-    const gridSize = 50;
 
     useEffect(() => {
       function handleResize() {
@@ -176,29 +161,47 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       );
     }
 
+    let clickTimer: NodeJS.Timeout | null = null;
     function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      const found = objects.find(
-        (o) => isPointInRotatedRect(o, x, y)
-      );
-
-      if (found) {
+      const foundIdx = objects.findIndex((o) => isPointInRotatedRect(o, x, y));
+      if (foundIdx !== -1) {
+        // If not dragging, rotate on click (single click)
+        clickTimer = setTimeout(() => {
+          setObjects((prev) =>
+            prev.map((o, i) =>
+              i === foundIdx
+                ? {
+                    ...o,
+                    rotation: (o.rotation + 90) % 360,
+                    w: o.rotation % 180 === 0 ? o.h : o.w,
+                    h: o.rotation % 180 === 0 ? o.w : o.h,
+                  }
+                : o
+            )
+          );
+        }, 180);
+        // If mouse moves, treat as drag
         setDragging({
-          ...found,
-          offsetX: x - found.x,
-          offsetY: y - found.y,
-          snapX: found.x,
-          snapY: found.y,
+          ...objects[foundIdx],
+          offsetX: x - objects[foundIdx].x,
+          offsetY: y - objects[foundIdx].y,
+          snapX: objects[foundIdx].x,
+          snapY: objects[foundIdx].y,
         });
       }
     }
 
     function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
       if (!dragging) return;
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x = e.clientX - rect.left;
@@ -215,6 +218,10 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
     }
 
     function handleMouseUp() {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
       if (dragging) {
         const movedObj = { ...dragging, x: dragging.snapX, y: dragging.snapY };
         const others = objects.filter((o) => o.id !== dragging.id);
@@ -301,17 +308,7 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
               Undo
             </button>
           </div>
-          <div className="flex gap-2 mt-2">
-            {objects.map((obj) => (
-              <button
-                key={obj.id}
-                onClick={() => handleRotate(obj.id)}
-                className="px-2 py-1 bg-blue-700 rounded"
-              >
-                Rotate {obj.label}
-              </button>
-            ))}
-          </div>
+          {/* Rotation instructions removed, now click object to rotate */}
         </div>
       </motion.div>
     );
