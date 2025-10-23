@@ -10,7 +10,7 @@ const RoomDesigner = dynamic(() => import("../../room/page"), { ssr: false });
 const levelConfigs: Record<string, any> = {
   "1": {
     name: "Small Bedroom",
-    room: { width: 400, height: 300 },
+    room: { width: 800, height: 600 },
     furniture: [
       { id: "bed", label: "Bed", w: 120, h: 60, color: "#f28b82" },
       { id: "table", label: "Table", w: 60, h: 60, color: "#34a853" },

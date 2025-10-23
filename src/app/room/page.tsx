@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
@@ -34,11 +33,11 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
     const roomY = Math.round((canvasSize.height - roomHeight) / 2 / gridSize) * gridSize;
 
     // Predefined furniture pieces or from props
-    // Place furniture in a grid pattern, support many pieces
+    // Place furniture in a vertical dock on the right
     const defaultFurniture: RoomObject[] = Array.from({ length: 10 }).map((_, i) => ({
       id: `furniture${i}`,
-      x: roomX + gridSize + (i % 5) * gridSize * 2,
-      y: roomY + gridSize + Math.floor(i / 5) * gridSize * 3,
+      x: roomX + roomWidth + gridSize * 2, // Position to the right of the room
+      y: roomY + gridSize + i * (gridSize * 3), // Stack vertically
       w: gridSize * (i % 2 === 0 ? 2 : 1),
       h: gridSize * (i % 3 === 0 ? 2 : 1),
       color: `hsl(${i * 36}, 70%, 60%)`,
@@ -58,13 +57,15 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
         : defaultFurniture
     );
     const [dragging, setDragging] = useState<DraggingObject | null>(null);
+    const [hoveredObject, setHoveredObject] = useState<RoomObject | null>(null);
     const [history, setHistory] = useState<RoomObject[][]>([]);
 
     useEffect(() => {
       function handleResize() {
+        // Subtract 32px for padding and adjust for better fit
         setCanvasSize({
-          width: Math.max(window.innerWidth, 900),
-          height: Math.max(window.innerHeight, 600),
+          width: Math.min(window.innerWidth - 32, 1200),
+          height: Math.min(window.innerHeight - 32, 800),
         });
       }
       handleResize();
@@ -126,6 +127,17 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(obj.label, 0, 0);
+
+          // Draw rotation icon when hovered
+          if (hoveredObject && hoveredObject.id === obj.id && !dragging) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+            ctx.beginPath();
+            ctx.arc(obj.w / 2, -obj.h / 2, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.font = "bold 14px sans-serif";
+            ctx.fillText("⟳", obj.w / 2, -obj.h / 2);
+          }
           ctx.restore();
         });
       }
@@ -161,56 +173,120 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       );
     }
 
-    let clickTimer: NodeJS.Timeout | null = null;
+    function normalizeRotation(r: number) {
+      // Round to nearest 90 to defensively normalize any non-exact values
+      const step = Math.round(r / 90) % 4;
+      return ((step + 4) % 4) * 90;
+    }
+
+    function rotateObject(targetId: string) {
+      setObjects((prev) => {
+        const idx = prev.findIndex((p) => p.id === targetId);
+        if (idx === -1) return prev;
+        const obj = prev[idx];
+
+        const current = normalizeRotation(obj.rotation);
+        const next = (current + 90) % 360; // only 0,90,180,270
+
+        // Determine new width/height (swap on 90/270)
+        const willSwap = (current % 180) !== (next % 180);
+        const newW = willSwap ? obj.h : obj.w;
+        const newH = willSwap ? obj.w : obj.h;
+
+        // Keep object's center, snap center to grid for alignment
+        const cx = obj.x + obj.w / 2;
+        const cy = obj.y + obj.h / 2;
+        const snapCx = Math.round(cx / gridSize) * gridSize;
+        const snapCy = Math.round(cy / gridSize) * gridSize;
+        let newX = snapCx - newW / 2;
+        let newY = snapCy - newH / 2;
+
+        // Clamp to room bounds
+        newX = Math.max(roomX, Math.min(roomX + roomWidth - newW, newX));
+        newY = Math.max(roomY, Math.min(roomY + roomHeight - newH, newY));
+
+        const movedObj: RoomObject = { ...obj, x: newX, y: newY, w: newW, h: newH, rotation: next };
+
+        // Check overlap with others
+        const others = prev.filter((p) => p.id !== targetId);
+        const overlap = others.some((o) => isOverlapping(movedObj, o));
+        if (overlap) {
+          // Cancel rotation if overlap would occur
+          return prev;
+        }
+
+        // Commit rotation
+        const nextArr = prev.map((p, i) => (i === idx ? movedObj : p));
+        return nextArr;
+      });
+      setHistory((h) => [...h, objects]);
+    }
+
     function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      const foundIdx = objects.findIndex((o) => isPointInRotatedRect(o, x, y));
-      if (foundIdx !== -1) {
-        // If not dragging, rotate on click (single click)
-        clickTimer = setTimeout(() => {
-          setObjects((prev) =>
-            prev.map((o, i) =>
-              i === foundIdx
-                ? {
-                    ...o,
-                    rotation: (o.rotation + 90) % 360,
-                    w: o.rotation % 180 === 0 ? o.h : o.w,
-                    h: o.rotation % 180 === 0 ? o.w : o.h,
-                  }
-                : o
-            )
-          );
-        }, 180);
-        // If mouse moves, treat as drag
+      const foundObj = objects.find((o) => isPointInRotatedRect(o, x, y));
+      if (foundObj) {
+        const foundIdx = objects.indexOf(foundObj);
+          // Check if clicking the rotation icon (transform local icon point to world coords)
+          if (hoveredObject && hoveredObject.id === foundObj.id) {
+            const cx = foundObj.x + foundObj.w / 2;
+            const cy = foundObj.y + foundObj.h / 2;
+            // The icon is drawn at local coords (foundObj.w/2, -foundObj.h/2)
+            const localX = foundObj.w / 2;
+            const localY = -foundObj.h / 2;
+            const theta = (foundObj.rotation * Math.PI) / 180;
+            const iconX = cx + (localX * Math.cos(theta) - localY * Math.sin(theta));
+            const iconY = cy + (localX * Math.sin(theta) + localY * Math.cos(theta));
+            const dx = x - iconX;
+            const dy = y - iconY;
+            if (dx * dx + dy * dy <= 225) { // 15^2 for icon radius
+              // Attempt to rotate (rotateObject will reject if overlap)
+              rotateObject(foundObj.id);
+              return;
+            }
+          }
+        // Start dragging
         setDragging({
-          ...objects[foundIdx],
-          offsetX: x - objects[foundIdx].x,
-          offsetY: y - objects[foundIdx].y,
-          snapX: objects[foundIdx].x,
-          snapY: objects[foundIdx].y,
+          ...foundObj,
+          offsetX: x - foundObj.x,
+          offsetY: y - foundObj.y,
+          snapX: foundObj.x,
+          snapY: foundObj.y,
         });
       }
     }
 
     function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
-      if (!dragging) return;
-      if (clickTimer) {
-        clearTimeout(clickTimer);
-        clickTimer = null;
-      }
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      // Snap to grid, keep inside room
-      let snapX = Math.round((x - dragging.offsetX) / gridSize) * gridSize;
-      let snapY = Math.round((y - dragging.offsetY) / gridSize) * gridSize;
-      // Clamp to room
+      // Update hovered object
+      if (!dragging) {
+        const foundObj = objects.find((o) => isPointInRotatedRect(o, x, y));
+        setHoveredObject(foundObj || null);
+      }
+
+      if (!dragging) return;
+
+      // Calculate center point for better rotation handling
+      const objectCenterX = x - dragging.offsetX + dragging.w / 2;
+      const objectCenterY = y - dragging.offsetY + dragging.h / 2;
+
+      // Snap center to grid
+      let snapCenterX = Math.round(objectCenterX / gridSize) * gridSize;
+      let snapCenterY = Math.round(objectCenterY / gridSize) * gridSize;
+
+      // Calculate top-left position from snapped center
+      let snapX = snapCenterX - dragging.w / 2;
+      let snapY = snapCenterY - dragging.h / 2;
+
+      // Clamp to room boundaries
       snapX = Math.max(roomX, Math.min(roomX + roomWidth - dragging.w, snapX));
       snapY = Math.max(roomY, Math.min(roomY + roomHeight - dragging.h, snapY));
 
@@ -218,10 +294,6 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
     }
 
     function handleMouseUp() {
-      if (clickTimer) {
-        clearTimeout(clickTimer);
-        clickTimer = null;
-      }
       if (dragging) {
         const movedObj = { ...dragging, x: dragging.snapX, y: dragging.snapY };
         const others = objects.filter((o) => o.id !== dragging.id);
@@ -261,21 +333,7 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       }
     }
 
-    function handleRotate(id: string) {
-      setObjects((prev) =>
-        prev.map((o) =>
-          o.id === id
-            ? {
-                ...o,
-                rotation: (o.rotation + 90) % 360,
-                // Swap width/height for 90/270
-                w: o.rotation % 180 === 0 ? o.h : o.w,
-                h: o.rotation % 180 === 0 ? o.w : o.h,
-              }
-            : o
-        )
-      );
-    }
+    // handleRotate removed; rotation is now via icon overlay
 
 
     // handleAddObject removed (not needed for fixed furniture)
@@ -285,30 +343,30 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
 
     return (
       <motion.div
-        className="w-full h-screen bg-[#1e1e1e] relative"
+        className="w-full min-h-screen bg-[#1e1e1e] p-4 flex flex-col items-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <canvas
-          ref={canvasRef}
-          width={canvasSize.width}
-          height={canvasSize.height}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          className="cursor-pointer"
-        />
-        <div className="absolute top-4 left-4 text-white text-lg bg-black/50 px-4 py-2 rounded-xl shadow-lg flex flex-col gap-2">
+        <div className="mb-4 text-white text-lg bg-black/50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-4">
           <div>Drag, arrange, and rotate furniture 🛋️</div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleUndo}
-              className="px-2 py-1 bg-gray-700 rounded"
-            >
-              Undo
-            </button>
-          </div>
-          {/* Rotation instructions removed, now click object to rotate */}
+          <button
+            onClick={handleUndo}
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+          >
+            Undo
+          </button>
+        </div>
+        
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            width={canvasSize.width}
+            height={canvasSize.height}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            className="cursor-pointer rounded-lg shadow-xl"
+          />
         </div>
       </motion.div>
     );
