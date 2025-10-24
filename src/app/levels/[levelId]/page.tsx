@@ -21,7 +21,7 @@ const levelConfigs: Record<string, any> = {
     room: { width: 600, height: 400 },
     furniture: [
       { id: "sofa", label: "Sofa", w: 150, h: 70, color: "#fbbc04" },
-      { id: "tv", label: "TV Stand", w: 100, h: 40, color: "#4285f4" },
+      { id: "tv", label: "TV Stand", w: 100, h: 50, color: "#4285f4" },
       { id: "table", label: "Table", w: 80, h: 80, color: "#34a853" },
     ],
   },

@@ -21,7 +21,7 @@ type RoomDesignerProps = {
 export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: propRoomHeight, initialFurniture: propFurniture }: RoomDesignerProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     // Room boundary (fixed size, centered or from props)
-    const gridSize = 50;
+    const gridSize = 10;
     // Ensure room and canvas are multiples of gridSize
     const roomWidth = Math.ceil((propRoomWidth ?? 800) / gridSize) * gridSize;
     const roomHeight = Math.ceil((propRoomHeight ?? 500) / gridSize) * gridSize;
@@ -56,9 +56,21 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           } as RoomObject))
         : defaultFurniture
     );
-    const [dragging, setDragging] = useState<DraggingObject | null>(null);
-    const [hoveredObject, setHoveredObject] = useState<RoomObject | null>(null);
+  const [dragging, setDragging] = useState<DraggingObject | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
     const [history, setHistory] = useState<RoomObject[][]>([]);
+
+    useEffect(() => {
+      function onKey(e: KeyboardEvent) {
+        if ((e.key === "r" || e.key === "R") && selectedId) {
+          e.preventDefault();
+          rotateObject(selectedId);
+        }
+      }
+      window.addEventListener("keydown", onKey);
+      // cleanup
+      return () => window.removeEventListener("keydown", onKey);
+    }, [selectedId, objects]);
 
     useEffect(() => {
       function handleResize() {
@@ -113,10 +125,24 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       function drawObjects() {
         if (!ctx) return;
         objects.forEach((obj) => {
+          // Compute axis-aligned bbox size (90deg steps)
+          const bboxW = obj.rotation % 180 === 0 ? obj.w : obj.h;
+          const bboxH = obj.rotation % 180 === 0 ? obj.h : obj.w;
+
+          // Highlight selected object with a stroke around its bbox (drawn axis-aligned)
+          if (selectedId === obj.id) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(255,255,255,0.95)";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(obj.x - 4, obj.y - 4, bboxW + 8, bboxH + 8);
+            ctx.restore();
+          }
+
           ctx.save();
-          // Move to center of object for rotation
-          const cx = obj.x + obj.w / 2;
-          const cy = obj.y + obj.h / 2;
+          // Center of the bbox
+          const cx = obj.x + bboxW / 2;
+          const cy = obj.y + bboxH / 2;
+          // Draw rotated object using intrinsic width/height
           ctx.translate(cx, cy);
           ctx.rotate((obj.rotation * Math.PI) / 180);
           ctx.fillStyle = obj.color;
@@ -127,17 +153,6 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(obj.label, 0, 0);
-
-          // Draw rotation icon when hovered
-          if (hoveredObject && hoveredObject.id === obj.id && !dragging) {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.beginPath();
-            ctx.arc(obj.w / 2, -obj.h / 2, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#000";
-            ctx.font = "bold 14px sans-serif";
-            ctx.fillText("⟳", obj.w / 2, -obj.h / 2);
-          }
           ctx.restore();
         });
       }
@@ -145,8 +160,10 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       function drawGhost() {
         if (!ctx) return;
         if (dragging) {
+          const bboxW = dragging.rotation % 180 === 0 ? dragging.w : dragging.h;
+          const bboxH = dragging.rotation % 180 === 0 ? dragging.h : dragging.w;
           ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-          ctx.fillRect(dragging.snapX, dragging.snapY, dragging.w, dragging.h);
+          ctx.fillRect(dragging.snapX, dragging.snapY, bboxW, bboxH);
         }
       }
 
@@ -159,14 +176,17 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
     }, [objects, dragging, canvasSize]);
 
     function isPointInRotatedRect(obj: RoomObject, px: number, py: number) {
-      // Transform point into object's local space
-      const cx = obj.x + obj.w / 2;
-      const cy = obj.y + obj.h / 2;
+      // Compute bbox center depending on rotation (bbox is axis-aligned dims)
+      const bboxW = obj.rotation % 180 === 0 ? obj.w : obj.h;
+      const bboxH = obj.rotation % 180 === 0 ? obj.h : obj.w;
+      const cx = obj.x + bboxW / 2;
+      const cy = obj.y + bboxH / 2;
       const angle = (-obj.rotation * Math.PI) / 180;
       const dx = px - cx;
       const dy = py - cy;
       const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
       const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
+      // Compare against intrinsic half-sizes (unrotated dims)
       return (
         localX > -obj.w / 2 && localX < obj.w / 2 &&
         localY > -obj.h / 2 && localY < obj.h / 2
@@ -184,30 +204,35 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
         const idx = prev.findIndex((p) => p.id === targetId);
         if (idx === -1) return prev;
         const obj = prev[idx];
-
         const current = normalizeRotation(obj.rotation);
         const next = (current + 90) % 360; // only 0,90,180,270
 
-        // Determine new width/height (swap on 90/270)
-        const willSwap = (current % 180) !== (next % 180);
-        const newW = willSwap ? obj.h : obj.w;
-        const newH = willSwap ? obj.w : obj.h;
+        // intrinsic sizes remain the same (obj.w/obj.h are intrinsic)
+        // compute current bbox size and next bbox size
+        const currBboxW = current % 180 === 0 ? obj.w : obj.h;
+        const currBboxH = current % 180 === 0 ? obj.h : obj.w;
+        const nextBboxW = next % 180 === 0 ? obj.w : obj.h;
+        const nextBboxH = next % 180 === 0 ? obj.h : obj.w;
 
-        // Keep object's center, snap center to grid for alignment
-        const cx = obj.x + obj.w / 2;
-        const cy = obj.y + obj.h / 2;
+        // current center (based on current bbox)
+        const cx = obj.x + currBboxW / 2;
+        const cy = obj.y + currBboxH / 2;
+
+        // snap center to grid for cleaner alignment
         const snapCx = Math.round(cx / gridSize) * gridSize;
         const snapCy = Math.round(cy / gridSize) * gridSize;
-        let newX = snapCx - newW / 2;
-        let newY = snapCy - newH / 2;
+
+        // compute new top-left for next bbox
+        let newX = snapCx - nextBboxW / 2;
+        let newY = snapCy - nextBboxH / 2;
 
         // Clamp to room bounds
-        newX = Math.max(roomX, Math.min(roomX + roomWidth - newW, newX));
-        newY = Math.max(roomY, Math.min(roomY + roomHeight - newH, newY));
+        newX = Math.max(roomX, Math.min(roomX + roomWidth - nextBboxW, newX));
+        newY = Math.max(roomY, Math.min(roomY + roomHeight - nextBboxH, newY));
 
-        const movedObj: RoomObject = { ...obj, x: newX, y: newY, w: newW, h: newH, rotation: next };
+        const movedObj: RoomObject = { ...obj, x: newX, y: newY, rotation: next };
 
-        // Check overlap with others
+        // Check overlap with others (isOverlapping will use bbox sizes)
         const others = prev.filter((p) => p.id !== targetId);
         const overlap = others.some((o) => isOverlapping(movedObj, o));
         if (overlap) {
@@ -215,7 +240,7 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           return prev;
         }
 
-        // Commit rotation
+        // Commit rotation (intrinsic w/h remain unchanged)
         const nextArr = prev.map((p, i) => (i === idx ? movedObj : p));
         return nextArr;
       });
@@ -230,26 +255,9 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
 
       const foundObj = objects.find((o) => isPointInRotatedRect(o, x, y));
       if (foundObj) {
-        const foundIdx = objects.indexOf(foundObj);
-          // Check if clicking the rotation icon (transform local icon point to world coords)
-          if (hoveredObject && hoveredObject.id === foundObj.id) {
-            const cx = foundObj.x + foundObj.w / 2;
-            const cy = foundObj.y + foundObj.h / 2;
-            // The icon is drawn at local coords (foundObj.w/2, -foundObj.h/2)
-            const localX = foundObj.w / 2;
-            const localY = -foundObj.h / 2;
-            const theta = (foundObj.rotation * Math.PI) / 180;
-            const iconX = cx + (localX * Math.cos(theta) - localY * Math.sin(theta));
-            const iconY = cy + (localX * Math.sin(theta) + localY * Math.cos(theta));
-            const dx = x - iconX;
-            const dy = y - iconY;
-            if (dx * dx + dy * dy <= 225) { // 15^2 for icon radius
-              // Attempt to rotate (rotateObject will reject if overlap)
-              rotateObject(foundObj.id);
-              return;
-            }
-          }
-        // Start dragging
+        // Select the object
+        setSelectedId(foundObj.id);
+        // Start dragging (use bbox top-left as reference)
         setDragging({
           ...foundObj,
           offsetX: x - foundObj.x,
@@ -257,6 +265,9 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           snapX: foundObj.x,
           snapY: foundObj.y,
         });
+      } else {
+        // Clicked empty space -> deselect
+        setSelectedId(null);
       }
     }
 
@@ -266,29 +277,29 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      // Update hovered object
-      if (!dragging) {
-        const foundObj = objects.find((o) => isPointInRotatedRect(o, x, y));
-        setHoveredObject(foundObj || null);
-      }
+      // nothing for hover; selection is via click
 
       if (!dragging) return;
 
       // Calculate center point for better rotation handling
-      const objectCenterX = x - dragging.offsetX + dragging.w / 2;
-      const objectCenterY = y - dragging.offsetY + dragging.h / 2;
+      // Compute bbox size for the dragging object (rotation-aware)
+      const bboxW = dragging.rotation % 180 === 0 ? dragging.w : dragging.h;
+      const bboxH = dragging.rotation % 180 === 0 ? dragging.h : dragging.w;
+
+      const objectCenterX = x - dragging.offsetX + bboxW / 2;
+      const objectCenterY = y - dragging.offsetY + bboxH / 2;
 
       // Snap center to grid
       let snapCenterX = Math.round(objectCenterX / gridSize) * gridSize;
       let snapCenterY = Math.round(objectCenterY / gridSize) * gridSize;
 
-      // Calculate top-left position from snapped center
-      let snapX = snapCenterX - dragging.w / 2;
-      let snapY = snapCenterY - dragging.h / 2;
+      // Calculate top-left position from snapped center using bbox sizes
+      let snapX = snapCenterX - bboxW / 2;
+      let snapY = snapCenterY - bboxH / 2;
 
-      // Clamp to room boundaries
-      snapX = Math.max(roomX, Math.min(roomX + roomWidth - dragging.w, snapX));
-      snapY = Math.max(roomY, Math.min(roomY + roomHeight - dragging.h, snapY));
+      // Clamp to room boundaries using bbox sizes
+      snapX = Math.max(roomX, Math.min(roomX + roomWidth - bboxW, snapX));
+      snapY = Math.max(roomY, Math.min(roomY + roomHeight - bboxH, snapY));
 
       setDragging({ ...dragging, snapX, snapY });
     }
@@ -298,12 +309,14 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
         const movedObj = { ...dragging, x: dragging.snapX, y: dragging.snapY };
         const others = objects.filter((o) => o.id !== dragging.id);
         const overlap = others.some((o) => isOverlapping(movedObj, o));
-        // Check if inside room
+        // Check if inside room using bbox sizes
+        const bboxW = movedObj.rotation % 180 === 0 ? movedObj.w : movedObj.h;
+        const bboxH = movedObj.rotation % 180 === 0 ? movedObj.h : movedObj.w;
         const insideRoom =
           movedObj.x >= roomX &&
           movedObj.y >= roomY &&
-          movedObj.x + movedObj.w <= roomX + roomWidth &&
-          movedObj.y + movedObj.h <= roomY + roomHeight;
+          movedObj.x + bboxW <= roomX + roomWidth &&
+          movedObj.y + bboxH <= roomY + roomHeight;
         if (!overlap && insideRoom) {
           setHistory((prev) => [...prev, objects]);
           setObjects((prev) =>
