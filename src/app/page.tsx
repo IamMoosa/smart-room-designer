@@ -60,7 +60,7 @@ export default function MenuPage() {
           className="text-center mb-12"
         >
           <h1 className="text-6xl font-bold text-white mb-4 tracking-tight">
-            Smart Room Designer
+            Room Designer
           </h1>
           <p className="text-xl text-purple-200 max-w-md mx-auto">
             Design your perfect room. Drag, drop, and arrange furniture with style.
