@@ -21,7 +21,7 @@ type RoomDesignerProps = {
 export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: propRoomHeight, initialFurniture: propFurniture }: RoomDesignerProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     // Room boundary (fixed size, centered or from props)
-    const gridSize = 10;
+    const gridSize = 50;
     // Ensure room and canvas are multiples of gridSize
     const roomWidth = Math.ceil((propRoomWidth ?? 800) / gridSize) * gridSize;
     const roomHeight = Math.ceil((propRoomHeight ?? 500) / gridSize) * gridSize;
@@ -34,16 +34,63 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
 
     // Predefined furniture pieces or from props
     // Place furniture in a vertical dock on the right
-    const defaultFurniture: RoomObject[] = Array.from({ length: 10 }).map((_, i) => ({
-      id: `furniture${i}`,
-      x: roomX + roomWidth + gridSize * 2, // Position to the right of the room
-      y: roomY + gridSize + i * (gridSize * 3), // Stack vertically
-      w: gridSize * (i % 2 === 0 ? 2 : 1),
-      h: gridSize * (i % 3 === 0 ? 2 : 1),
-      color: `hsl(${i * 36}, 70%, 60%)`,
-      label: `Item ${i + 1}`,
-      rotation: 0,
-    }));
+    const defaultFurniture: RoomObject[] = [
+      // Bed (3x2)
+      {
+        id: 'bed',
+        x: roomX + roomWidth + gridSize * 2,
+        y: roomY + gridSize,
+        w: gridSize * 3,
+        h: gridSize * 2,
+        color: '#8B5CF6',
+        label: '',
+        rotation: 0,
+      },
+      // Sofa (2x1)
+      {
+        id: 'sofa',
+        x: roomX + roomWidth + gridSize * 2,
+        y: roomY + gridSize * 4,
+        w: gridSize * 2,
+        h: gridSize,
+        color: '#06B6D4',
+        label: '',
+        rotation: 0,
+      },
+      // Table (2x2)
+      {
+        id: 'table',
+        x: roomX + roomWidth + gridSize * 2,
+        y: roomY + gridSize * 6,
+        w: gridSize * 2,
+        h: gridSize * 2,
+        color: '#F59E0B',
+        label: '',
+        rotation: 0,
+      },
+      // Chair (1x1)
+      {
+        id: 'chair1',
+        x: roomX + roomWidth + gridSize * 2,
+        y: roomY + gridSize * 9,
+        w: gridSize,
+        h: gridSize,
+        color: '#10B981',
+        label: '',
+        rotation: 0,
+      },
+      // Chair (1x1)
+      {
+        id: 'chair2',
+        x: roomX + roomWidth + gridSize * 4,
+        y: roomY + gridSize * 9,
+        w: gridSize,
+        h: gridSize,
+        color: '#10B981',
+        label: '',
+        rotation: 0,
+      }
+    ];
     const [objects, setObjects] = useState<RoomObject[]>(
       propFurniture
         ? propFurniture.map((f, i) => ({
@@ -148,11 +195,7 @@ export default function RoomDesigner({ roomWidth: propRoomWidth, roomHeight: pro
           ctx.fillStyle = obj.color;
           ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
           // Draw label
-          ctx.fillStyle = "#fff";
-          ctx.font = "bold 16px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(obj.label, 0, 0);
+          // Removed text labels
           ctx.restore();
         });
       }
