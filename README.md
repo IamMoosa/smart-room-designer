@@ -49,16 +49,27 @@ yarn dev
 smart-room-designer/
 ├── src/
 │   ├── app/                    # Next.js app directory
-│   │   ├── page.tsx           # Landing page
-│   │   ├── room/             # Room designer component
-│   │   │   ├── page.tsx     # Main room designer logic
-│   │   │   └── RoomObject.ts # Room object types and utilities
-│   │   └── help/            # Help page
-│   └── ...
+│   │   ├── page.tsx           # Landing page with RippleGrid animation
+│   │   ├── globals.css        # Global styles
+│   │   ├── layout.tsx         # Root layout component
+│   │   └── room/             # Room designer component
+│   │       └── page.tsx      # Main room designer logic
+│   ├── components/            # Reusable components
+│   │   ├── RippleGrid.tsx    # Interactive grid animation
+│   │   └── RippleBackground.tsx # Background wrapper component
+│   └── lib/                   # Utility functions
+│       └── utils.ts          # Common utility functions
 ├── public/                    # Static assets
-├── next.config.js            # Next.js configuration
-├── package.json              # Project dependencies
-└── tsconfig.json            # TypeScript configuration
+│   ├── file.svg              # UI icons
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── next.config.ts            # Next.js TypeScript configuration
+├── postcss.config.mjs        # PostCSS configuration
+├── eslint.config.mjs         # ESLint configuration
+├── tsconfig.json             # TypeScript configuration
+└── package.json              # Project dependencies
 ```
 
 ## 💻 Development Guide
