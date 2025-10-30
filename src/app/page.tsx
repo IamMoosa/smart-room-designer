@@ -2,57 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import Image from "next/image";
-
-const floatingIcons = [
-  { src: "/file.svg", alt: "File Icon" },
-  { src: "/window.svg", alt: "Window Icon" },
-  { src: "/globe.svg", alt: "Globe Icon" },
-];
+import RippleBackground from "@/components/RippleBackground";
 
 export default function MenuPage() {
   const router = useRouter();
 
   return (
-    <div className="relative h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background particles */}
-      <div className="absolute inset-0 opacity-20">
-        {floatingIcons.map((icon, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            initial={{ 
-              x: Math.random() * 100, 
-              y: Math.random() * 100,
-              scale: 0.5,
-              opacity: 0.3
-            }}
-            animate={{
-              x: [null, Math.random() * window.innerWidth],
-              y: [null, Math.random() * window.innerHeight],
-              scale: [0.5, 0.8, 0.5],
-              opacity: [0.3, 0.6, 0.3],
-            }}
-            transition={{
-              duration: 10 + Math.random() * 10,
-              repeat: Infinity,
-              repeatType: "reverse",
-              ease: "linear"
-            }}
-          >
-            <Image 
-              src={icon.src} 
-              alt={icon.alt} 
-              width={64} 
-              height={64} 
-              className="opacity-50"
-            />
-          </motion.div>
-        ))}
-      </div>
+    <div className="relative h-screen w-screen overflow-hidden bg-black">
+      {/* RippleGrid Background */}
+      <RippleBackground />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+      <div className="relative z-1 flex flex-col items-center justify-center h-full">
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -93,9 +54,7 @@ export default function MenuPage() {
         </motion.div>
       </div>
 
-      {/* Decorative corner gradients */}
-      <div className="absolute top-0 left-0 w-1/3 h-1/3 bg-gradient-to-br from-purple-500/20 to-transparent" />
-      <div className="absolute bottom-0 right-0 w-1/3 h-1/3 bg-gradient-to-tl from-indigo-500/20 to-transparent" />
+
     </div>
   );
 }
