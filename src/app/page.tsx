@@ -18,10 +18,10 @@ export default function MenuPage() {
         {/* Content (static, no animations) */}
         <div className="relative z-30 flex flex-col items-center justify-center h-full w-full pointer-events-none">
           <div className="text-center mb-12">
-            <h1 className="text-7xl sm:text-5xl md:text-9xl text-white mb-4 tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" style={{ fontFamily: '"Brush Script MT", cursive' }}>
+            <h1 className="text-7xl sm:text-5xl md:text-9xl text-white mb-4 tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" >
               Room Designer
             </h1>
-            <p className="text-xl sm:text-lg md:text-2xl text-purple-200 max-w-md mx-auto mb-8 leading-relaxed drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" style={{ fontFamily: '"Forte", cursive' }}>
+            <p className="text-xl sm:text-lg md:text-2xl text-purple-200 max-w-md mx-auto mb-8 leading-relaxed drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" >
               Design your perfect room. Drag, drop, and arrange furniture with style.
             </p>
           </div>
