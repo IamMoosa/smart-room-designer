@@ -120,3 +120,17 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+@keyframes scanLines {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 100%;
+  }
+}
+
+.animate-scanLines {
+  animation: scanLines 10s linear infinite;
+  opacity: 0.4;
+}
