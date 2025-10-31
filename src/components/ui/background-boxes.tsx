@@ -7,16 +7,33 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
   const rows = new Array(150).fill(1);
   const cols = new Array(100).fill(1);
   let colors = [
-    "#93c5fd",
-    "#f9a8d4",
-    "#86efac",
-    "#fde047",
-    "#fca5a5",
-    "#d8b4fe",
-    "#93c5fd",
-    "#a5b4fc",
-    "#c4b5fd",
-  ];
+  // Blues
+  "#93c5fd", "#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8",
+  
+  // Purples
+  "#d8b4fe", "#c084fc", "#a78bfa", "#8b5cf6", "#7c3aed",
+  
+  // Pinks
+  "#f9a8d4", "#f472b6", "#ec4899", "#db2777", "#be185d",
+  
+  // Reds
+  "#fca5a5", "#f87171", "#ef4444", "#dc2626", "#b91c1c",
+  
+  // Oranges
+  "#fdba74", "#fb923c", "#f97316", "#ea580c", "#c2410c",
+  
+  // Yellows
+  "#fde047", "#facc15", "#eab308", "#ca8a04", "#a16207",
+  
+  // Greens
+  "#86efac", "#4ade80", "#22c55e", "#16a34a", "#15803d",
+  
+  // Teals
+  "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488", "#0f766e",
+  
+  // Neutrals
+  "#f5f5f5", "#e5e7eb", "#9ca3af", "#6b7280", "#374151"
+];
   const getRandomColor = () => {
     return colors[Math.floor(Math.random() * colors.length)];
   };
