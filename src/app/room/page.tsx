@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ZoomIn, ZoomOut, Maximize2, RotateCw, Undo, Move, Home } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, RotateCw, Undo, Move, Home, Target } from "lucide-react";
 
 type RoomObject = {
   id: string;
@@ -14,6 +14,7 @@ type RoomObject = {
   rotation: number;
   placed: boolean;
   type: string;
+  roomId?: string;
 };
 
 type Room = {
@@ -52,7 +53,6 @@ function isOverlapping(a: RoomObject, b: RoomObject) {
 export default function HouseLayoutDesigner() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const gridSize = 5;
   
   const houseWidth = 1200;
@@ -71,30 +71,85 @@ export default function HouseLayoutDesigner() {
   const initialFurniture: RoomObject[] = [
     // Living Room Furniture
     { id: 'sofa-1', x: 50, y: 50, w: 180, h: 80, color: '#8B5CF6', label: 'Sofa', rotation: 0, placed: false, type: 'sofa' },
+    { id: 'sofa-2', x: 250, y: 50, w: 180, h: 80, color: '#7C3AED', label: 'Sofa', rotation: 0, placed: false, type: 'sofa' },
     { id: 'armchair-1', x: 50, y: 150, w: 80, h: 80, color: '#A78BFA', label: 'Armchair', rotation: 0, placed: false, type: 'armchair' },
     { id: 'armchair-2', x: 150, y: 150, w: 80, h: 80, color: '#A78BFA', label: 'Armchair', rotation: 0, placed: false, type: 'armchair' },
+    { id: 'armchair-3', x: 250, y: 150, w: 80, h: 80, color: '#C4B5FD', label: 'Armchair', rotation: 0, placed: false, type: 'armchair' },
     { id: 'coffee-table-1', x: 50, y: 250, w: 100, h: 60, color: '#D8B4FE', label: 'Coffee Table', rotation: 0, placed: false, type: 'table' },
-    { id: 'tv-stand-1', x: 170, y: 250, w: 120, h: 40, color: '#4C1D95', label: 'TV Stand', rotation: 0, placed: false, type: 'tv-stand' },
+    { id: 'coffee-table-2', x: 170, y: 250, w: 100, h: 60, color: '#E9D5FF', label: 'Coffee Table', rotation: 0, placed: false, type: 'table' },
+    { id: 'tv-stand-1', x: 50, y: 330, w: 120, h: 40, color: '#4C1D95', label: 'TV Stand', rotation: 0, placed: false, type: 'tv-stand' },
+    { id: 'tv-stand-2', x: 190, y: 330, w: 120, h: 40, color: '#6B21A8', label: 'TV Stand', rotation: 0, placed: false, type: 'tv-stand' },
+    { id: 'bookshelf-1', x: 330, y: 50, w: 60, h: 150, color: '#92400E', label: 'Bookshelf', rotation: 0, placed: false, type: 'bookshelf' },
+    { id: 'bookshelf-2', x: 410, y: 50, w: 60, h: 150, color: '#B45309', label: 'Bookshelf', rotation: 0, placed: false, type: 'bookshelf' },
+    { id: 'plant-1', x: 330, y: 220, w: 40, h: 40, color: '#22C55E', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
+    { id: 'plant-2', x: 390, y: 220, w: 40, h: 40, color: '#16A34A', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
+    { id: 'plant-3', x: 450, y: 220, w: 40, h: 40, color: '#15803D', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
     
     // Kitchen & Dining
-    { id: 'dining-table-1', x: 50, y: 320, w: 140, h: 90, color: '#F59E0B', label: 'Dining Table', rotation: 0, placed: false, type: 'table' },
-    { id: 'dining-chair-1', x: 50, y: 430, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
-    { id: 'dining-chair-2', x: 110, y: 430, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
-    { id: 'dining-chair-3', x: 170, y: 430, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
-    { id: 'dining-chair-4', x: 230, y: 430, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
-    { id: 'kitchen-counter-1', x: 50, y: 490, w: 200, h: 60, color: '#D97706', label: 'Counter', rotation: 0, placed: false, type: 'counter' },
+    { id: 'dining-table-1', x: 50, y: 400, w: 140, h: 90, color: '#F59E0B', label: 'Dining Table', rotation: 0, placed: false, type: 'table' },
+    { id: 'dining-table-2', x: 210, y: 400, w: 140, h: 90, color: '#FBBF24', label: 'Dining Table', rotation: 0, placed: false, type: 'table' },
+    { id: 'dining-chair-1', x: 50, y: 510, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'dining-chair-2', x: 110, y: 510, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'dining-chair-3', x: 170, y: 510, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'dining-chair-4', x: 230, y: 510, w: 45, h: 45, color: '#FBBF24', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'dining-chair-5', x: 290, y: 510, w: 45, h: 45, color: '#F97316', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'dining-chair-6', x: 350, y: 510, w: 45, h: 45, color: '#F97316', label: 'Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'kitchen-counter-1', x: 50, y: 580, w: 200, h: 60, color: '#D97706', label: 'Counter', rotation: 0, placed: false, type: 'counter' },
+    { id: 'kitchen-counter-2', x: 270, y: 580, w: 200, h: 60, color: '#EA580C', label: 'Counter', rotation: 0, placed: false, type: 'counter' },
+    { id: 'fridge-1', x: 50, y: 660, w: 80, h: 80, color: '#1E40AF', label: 'Fridge', rotation: 0, placed: false, type: 'appliance' },
+    { id: 'stove-1', x: 150, y: 660, w: 80, h: 80, color: '#DC2626', label: 'Stove', rotation: 0, placed: false, type: 'appliance' },
+    { id: 'microwave-1', x: 250, y: 660, w: 60, h: 50, color: '#525252', label: 'Microwave', rotation: 0, placed: false, type: 'appliance' },
     
     // Master Bedroom
-    { id: 'king-bed-1', x: 50, y: 570, w: 200, h: 180, color: '#3B82F6', label: 'King Bed', rotation: 0, placed: false, type: 'bed' },
-    { id: 'nightstand-1', x: 50, y: 760, w: 50, h: 50, color: '#60A5FA', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
-    { id: 'nightstand-2', x: 120, y: 760, w: 50, h: 50, color: '#60A5FA', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
-    { id: 'dresser-1', x: 190, y: 760, w: 120, h: 55, color: '#2563EB', label: 'Dresser', rotation: 0, placed: false, type: 'dresser' },
+    { id: 'king-bed-1', x: 50, y: 50, w: 200, h: 180, color: '#3B82F6', label: 'King Bed', rotation: 0, placed: false, type: 'bed' },
+    { id: 'queen-bed-1', x: 280, y: 50, w: 160, h: 160, color: '#1D4ED8', label: 'Queen Bed', rotation: 0, placed: false, type: 'bed' },
+    { id: 'nightstand-1', x: 50, y: 250, w: 50, h: 50, color: '#60A5FA', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
+    { id: 'nightstand-2', x: 120, y: 250, w: 50, h: 50, color: '#60A5FA', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
+    { id: 'nightstand-3', x: 280, y: 250, w: 50, h: 50, color: '#3B82F6', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
+    { id: 'nightstand-4', x: 350, y: 250, w: 50, h: 50, color: '#3B82F6', label: 'Nightstand', rotation: 0, placed: false, type: 'nightstand' },
+    { id: 'dresser-1', x: 190, y: 250, w: 120, h: 55, color: '#2563EB', label: 'Dresser', rotation: 0, placed: false, type: 'dresser' },
+    { id: 'dresser-2', x: 420, y: 250, w: 120, h: 55, color: '#1E40AF', label: 'Dresser', rotation: 0, placed: false, type: 'dresser' },
+    { id: 'mirror-1', x: 50, y: 320, w: 80, h: 120, color: '#E0E7FF', label: 'Mirror', rotation: 0, placed: false, type: 'decor' },
+    { id: 'mirror-2', x: 420, y: 320, w: 80, h: 120, color: '#E0E7FF', label: 'Mirror', rotation: 0, placed: false, type: 'decor' },
     
     // Bedroom 2
-    { id: 'single-bed-1', x: 330, y: 570, w: 100, h: 180, color: '#10B981', label: 'Single Bed', rotation: 0, placed: false, type: 'bed' },
-    { id: 'desk-1', x: 330, y: 760, w: 120, h: 60, color: '#34D399', label: 'Desk', rotation: 0, placed: false, type: 'desk' },
-    { id: 'desk-chair-1', x: 330, y: 830, w: 50, h: 50, color: '#6EE7B7', label: 'Desk Chair', rotation: 0, placed: false, type: 'chair' },
-    { id: 'wardrobe-1', x: 460, y: 760, w: 90, h: 60, color: '#059669', label: 'Wardrobe', rotation: 0, placed: false, type: 'wardrobe' },
+    { id: 'single-bed-1', x: 50, y: 50, w: 100, h: 180, color: '#10B981', label: 'Single Bed', rotation: 0, placed: false, type: 'bed' },
+    { id: 'single-bed-2', x: 170, y: 50, w: 100, h: 180, color: '#059669', label: 'Single Bed', rotation: 0, placed: false, type: 'bed' },
+    { id: 'bunk-bed-1', x: 290, y: 50, w: 100, h: 200, color: '#0D9488', label: 'Bunk Bed', rotation: 0, placed: false, type: 'bed' },
+    { id: 'desk-1', x: 50, y: 250, w: 120, h: 60, color: '#34D399', label: 'Desk', rotation: 0, placed: false, type: 'desk' },
+    { id: 'desk-2', x: 190, y: 250, w: 120, h: 60, color: '#2DD4BF', label: 'Desk', rotation: 0, placed: false, type: 'desk' },
+    { id: 'desk-chair-1', x: 50, y: 330, w: 50, h: 50, color: '#6EE7B7', label: 'Desk Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'desk-chair-2', x: 120, y: 330, w: 50, h: 50, color: '#5EEAD4', label: 'Desk Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'desk-chair-3', x: 190, y: 330, w: 50, h: 50, color: '#5EEAD4', label: 'Desk Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'wardrobe-1', x: 310, y: 250, w: 90, h: 60, color: '#059669', label: 'Wardrobe', rotation: 0, placed: false, type: 'wardrobe' },
+    { id: 'wardrobe-2', x: 310, y: 330, w: 90, h: 60, color: '#10B981', label: 'Wardrobe', rotation: 0, placed: false, type: 'wardrobe' },
+    { id: 'gaming-chair-1', x: 310, y: 410, w: 70, h: 70, color: '#14B8A6', label: 'Gaming Chair', rotation: 0, placed: false, type: 'chair' },
+    
+    // Bathroom
+    { id: 'bathtub-1', x: 50, y: 50, w: 140, h: 100, color: '#DBEAFE', label: 'Bathtub', rotation: 0, placed: false, type: 'fixture' },
+    { id: 'toilet-1', x: 210, y: 50, w: 60, h: 70, color: '#F3F4F6', label: 'Toilet', rotation: 0, placed: false, type: 'fixture' },
+    { id: 'sink-1', x: 50, y: 170, w: 100, h: 50, color: '#E5E7EB', label: 'Sink', rotation: 0, placed: false, type: 'fixture' },
+    { id: 'sink-2', x: 170, y: 170, w: 100, h: 50, color: '#E5E7EB', label: 'Sink', rotation: 0, placed: false, type: 'fixture' },
+    { id: 'cabinet-1', x: 50, y: 240, w: 80, h: 60, color: '#D1D5DB', label: 'Cabinet', rotation: 0, placed: false, type: 'storage' },
+    { id: 'cabinet-2', x: 150, y: 240, w: 80, h: 60, color: '#D1D5DB', label: 'Cabinet', rotation: 0, placed: false, type: 'storage' },
+    { id: 'cabinet-3', x: 250, y: 240, w: 80, h: 60, color: '#D1D5DB', label: 'Cabinet', rotation: 0, placed: false, type: 'storage' },
+    { id: 'shower-1', x: 210, y: 150, w: 80, h: 80, color: '#C7D2E0', label: 'Shower', rotation: 0, placed: false, type: 'fixture' },
+    
+    // Hallway & Decorative
+    { id: 'coat-rack-1', x: 50, y: 50, w: 50, h: 50, color: '#8B7355', label: 'Coat Rack', rotation: 0, placed: false, type: 'decor' },
+    { id: 'shoe-rack-1', x: 120, y: 50, w: 80, h: 40, color: '#A0826D', label: 'Shoe Rack', rotation: 0, placed: false, type: 'storage' },
+    { id: 'wall-art-1', x: 50, y: 120, w: 60, h: 80, color: '#F472B6', label: 'Wall Art', rotation: 0, placed: false, type: 'decor' },
+    { id: 'wall-art-2', x: 130, y: 120, w: 60, h: 80, color: '#EC4899', label: 'Wall Art', rotation: 0, placed: false, type: 'decor' },
+    { id: 'console-table-1', x: 50, y: 220, w: 100, h: 40, color: '#78350F', label: 'Console Table', rotation: 0, placed: false, type: 'table' },
+    
+    // Balcony
+    { id: 'lounge-chair-1', x: 50, y: 50, w: 100, h: 80, color: '#FBBF24', label: 'Lounge Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'lounge-chair-2', x: 170, y: 50, w: 100, h: 80, color: '#F59E0B', label: 'Lounge Chair', rotation: 0, placed: false, type: 'chair' },
+    { id: 'outdoor-table-1', x: 50, y: 150, w: 120, h: 80, color: '#D97706', label: 'Outdoor Table', rotation: 0, placed: false, type: 'table' },
+    { id: 'outdoor-umbrella-1', x: 190, y: 150, w: 80, h: 80, color: '#EA580C', label: 'Umbrella', rotation: 0, placed: false, type: 'decor' },
+    { id: 'outdoor-plant-1', x: 50, y: 250, w: 50, h: 50, color: '#22C55E', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
+    { id: 'outdoor-plant-2', x: 120, y: 250, w: 50, h: 50, color: '#16A34A', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
+    { id: 'outdoor-plant-3', x: 190, y: 250, w: 50, h: 50, color: '#15803D', label: 'Plant', rotation: 0, placed: false, type: 'decor' },
   ];
 
   const [objects, setObjects] = useState<RoomObject[]>(initialFurniture);
@@ -139,6 +194,11 @@ export default function HouseLayoutDesigner() {
     };
   }, [selectedId, dragging]);
 
+  // Check achievements
+  useEffect(() => {
+    // No achievement logic needed
+  }, [objects]);
+
   function drawFurniture(ctx: CanvasRenderingContext2D, obj: RoomObject, zoom: number) {
     const bboxW = obj.rotation % 180 === 0 ? obj.w : obj.h;
     const bboxH = obj.rotation % 180 === 0 ? obj.h : obj.w;
@@ -162,13 +222,10 @@ export default function HouseLayoutDesigner() {
     // Draw furniture based on type
     switch(obj.type) {
       case 'bed':
-        // Mattress
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Headboard
         ctx.fillStyle = shadeColor(obj.color, -20);
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h * 0.2);
-        // Pillows
         ctx.fillStyle = '#FFFFFF';
         ctx.globalAlpha = 0.8;
         ctx.fillRect(-obj.w / 2 + obj.w * 0.15, -obj.h / 2 + obj.h * 0.1, obj.w * 0.3, obj.h * 0.15);
@@ -177,16 +234,12 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'sofa':
-        // Seat
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2 + obj.h * 0.2, obj.w, obj.h * 0.6);
-        // Back
         ctx.fillStyle = shadeColor(obj.color, -15);
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h * 0.3);
-        // Arms
         ctx.fillRect(-obj.w / 2, -obj.h / 2 + obj.h * 0.2, obj.w * 0.15, obj.h * 0.6);
         ctx.fillRect(obj.w / 2 - obj.w * 0.15, -obj.h / 2 + obj.h * 0.2, obj.w * 0.15, obj.h * 0.6);
-        // Cushions
         ctx.strokeStyle = shadeColor(obj.color, -30);
         ctx.lineWidth = 1.5 / zoom;
         for (let i = 0; i < 3; i++) {
@@ -195,25 +248,19 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'armchair':
-        // Seat
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2 + obj.h * 0.2, obj.w, obj.h * 0.6);
-        // Back
         ctx.fillStyle = shadeColor(obj.color, -15);
         ctx.fillRect(-obj.w / 2 + obj.w * 0.15, -obj.h / 2, obj.w * 0.7, obj.h * 0.3);
-        // Arms
         ctx.fillRect(-obj.w / 2, -obj.h / 2 + obj.h * 0.2, obj.w * 0.2, obj.h * 0.6);
         ctx.fillRect(obj.w / 2 - obj.w * 0.2, -obj.h / 2 + obj.h * 0.2, obj.w * 0.2, obj.h * 0.6);
         break;
         
       case 'table':
-        // Table top
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Table edge (3D effect)
         ctx.fillStyle = shadeColor(obj.color, -20);
         ctx.fillRect(-obj.w / 2, obj.h / 2 - obj.h * 0.1, obj.w, obj.h * 0.1);
-        // Legs
         const legSize = Math.min(obj.w, obj.h) * 0.08;
         ctx.fillStyle = shadeColor(obj.color, -30);
         ctx.fillRect(-obj.w / 2 + legSize, -obj.h / 2 + legSize, legSize, obj.h * 0.15);
@@ -223,48 +270,38 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'chair':
-        // Seat
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2 + obj.h * 0.3, obj.w, obj.h * 0.5);
-        // Back
         ctx.fillStyle = shadeColor(obj.color, -15);
         ctx.fillRect(-obj.w / 2 + obj.w * 0.15, -obj.h / 2, obj.w * 0.7, obj.h * 0.4);
         break;
         
       case 'dresser':
-        // Main body
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Drawers
         ctx.strokeStyle = shadeColor(obj.color, -30);
         ctx.lineWidth = 2 / zoom;
         const drawerCount = 3;
         for (let i = 0; i < drawerCount; i++) {
           ctx.strokeRect(-obj.w / 2 + obj.w * 0.05, -obj.h / 2 + (i * obj.h / drawerCount) + obj.h * 0.05, obj.w * 0.9, (obj.h / drawerCount) - obj.h * 0.1);
-          // Handles
           ctx.fillStyle = shadeColor(obj.color, -40);
           ctx.fillRect(-obj.w * 0.15, -obj.h / 2 + (i * obj.h / drawerCount) + obj.h / drawerCount / 2 - 2 / zoom, obj.w * 0.3, 4 / zoom);
         }
         break;
         
       case 'nightstand':
-        // Main body
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Drawer
         ctx.strokeStyle = shadeColor(obj.color, -30);
         ctx.lineWidth = 2 / zoom;
         ctx.strokeRect(-obj.w / 2 + obj.w * 0.1, -obj.h / 2 + obj.h * 0.15, obj.w * 0.8, obj.h * 0.3);
-        // Handle
         ctx.fillStyle = shadeColor(obj.color, -40);
         ctx.fillRect(-obj.w * 0.15, -obj.h / 2 + obj.h * 0.3, obj.w * 0.3, 3 / zoom);
         break;
         
       case 'desk':
-        // Desktop
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Legs
         ctx.fillStyle = shadeColor(obj.color, -25);
         const deskLegW = obj.w * 0.1;
         ctx.fillRect(-obj.w / 2 + deskLegW, -obj.h / 2, deskLegW, obj.h);
@@ -272,10 +309,8 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'tv-stand':
-        // Main body
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // TV screen representation
         ctx.fillStyle = '#1F2937';
         ctx.fillRect(-obj.w / 2 + obj.w * 0.2, -obj.h / 2 - obj.h * 0.6, obj.w * 0.6, obj.h * 0.5);
         ctx.strokeStyle = '#374151';
@@ -284,10 +319,8 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'counter':
-        // Counter top
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Cabinets
         ctx.strokeStyle = shadeColor(obj.color, -30);
         ctx.lineWidth = 2 / zoom;
         const cabinetCount = Math.floor(obj.w / 50);
@@ -297,15 +330,12 @@ export default function HouseLayoutDesigner() {
         break;
         
       case 'wardrobe':
-        // Main body
         ctx.fillStyle = obj.color;
         ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
-        // Doors
         ctx.strokeStyle = shadeColor(obj.color, -30);
         ctx.lineWidth = 2 / zoom;
         ctx.strokeRect(-obj.w / 2 + obj.w * 0.02, -obj.h / 2 + obj.h * 0.05, obj.w / 2 - obj.w * 0.03, obj.h * 0.9);
         ctx.strokeRect(0 + obj.w * 0.01, -obj.h / 2 + obj.h * 0.05, obj.w / 2 - obj.w * 0.03, obj.h * 0.9);
-        // Handles
         ctx.fillStyle = shadeColor(obj.color, -40);
         ctx.fillRect(-obj.w / 4 - obj.w * 0.05, 0, obj.w * 0.05, 4 / zoom);
         ctx.fillRect(obj.w / 4, 0, obj.w * 0.05, 4 / zoom);
@@ -342,85 +372,75 @@ export default function HouseLayoutDesigner() {
       canvas.height = container.clientHeight;
     }
 
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    ctx.translate(pan.x, pan.y);
+    ctx.scale(zoom, zoom);
+
+    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+    ctx.shadowBlur = 20 / zoom;
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 5 / zoom;
+    ctx.strokeRect(0, 0, houseWidth, houseHeight);
+    ctx.shadowBlur = 0;
+
+    rooms.forEach(room => {
+      ctx.fillStyle = room.color;
+      ctx.fillRect(room.x, room.y, room.w, room.h);
       
-      ctx.save();
-      ctx.translate(pan.x, pan.y);
-      ctx.scale(zoom, zoom);
+      ctx.strokeStyle = "#555";
+      ctx.lineWidth = 2 / zoom;
+      ctx.strokeRect(room.x, room.y, room.w, room.h);
+      
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      const labelPadding = 8 / zoom;
+      const fontSize = 14 / zoom;
+      ctx.font = `bold ${fontSize}px system-ui`;
+      const metrics = ctx.measureText(room.label);
+      const labelX = room.x + room.w / 2;
+      const labelY = room.y + 20 / zoom;
+      ctx.fillRect(labelX - metrics.width / 2 - labelPadding, labelY - fontSize - labelPadding / 2, 
+                   metrics.width + labelPadding * 2, fontSize + labelPadding);
+      
+      ctx.fillStyle = "#E5E7EB";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(room.label, labelX, labelY - fontSize);
+    });
 
-      // Draw house outline with shadow
-      ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-      ctx.shadowBlur = 20 / zoom;
-      ctx.strokeStyle = "#444";
-      ctx.lineWidth = 5 / zoom;
-      ctx.strokeRect(0, 0, houseWidth, houseHeight);
-      ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#222";
+    ctx.lineWidth = 0.3 / zoom;
+    for (let x = 0; x <= houseWidth; x += gridSize * 10) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, houseHeight);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= houseHeight; y += gridSize * 10) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(houseWidth, y);
+      ctx.stroke();
+    }
 
-      // Draw rooms
-      rooms.forEach(room => {
-        ctx.fillStyle = room.color;
-        ctx.fillRect(room.x, room.y, room.w, room.h);
-        
-        ctx.strokeStyle = "#555";
-        ctx.lineWidth = 2 / zoom;
-        ctx.strokeRect(room.x, room.y, room.w, room.h);
-        
-        // Room labels with background
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        const labelPadding = 8 / zoom;
-        const fontSize = 14 / zoom;
-        ctx.font = `bold ${fontSize}px system-ui`;
-        const metrics = ctx.measureText(room.label);
-        const labelX = room.x + room.w / 2;
-        const labelY = room.y + 20 / zoom;
-        ctx.fillRect(labelX - metrics.width / 2 - labelPadding, labelY - fontSize - labelPadding / 2, 
-                     metrics.width + labelPadding * 2, fontSize + labelPadding);
-        
-        ctx.fillStyle = "#E5E7EB";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(room.label, labelX, labelY - fontSize);
-      });
+    objects.forEach(obj => {
+      drawFurniture(ctx, obj, zoom);
+    });
 
-      // Draw subtle grid
-      ctx.strokeStyle = "#222";
-      ctx.lineWidth = 0.3 / zoom;
-      for (let x = 0; x <= houseWidth; x += gridSize * 10) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, houseHeight);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= houseHeight; y += gridSize * 10) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(houseWidth, y);
-        ctx.stroke();
-      }
+    if (dragging) {
+      const bboxW = dragging.rotation % 180 === 0 ? dragging.w : dragging.h;
+      const bboxH = dragging.rotation % 180 === 0 ? dragging.h : dragging.w;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = 2 / zoom;
+      ctx.setLineDash([5 / zoom, 5 / zoom]);
+      ctx.fillRect(dragging.snapX, dragging.snapY, bboxW, bboxH);
+      ctx.strokeRect(dragging.snapX, dragging.snapY, bboxW, bboxH);
+      ctx.setLineDash([]);
+    }
 
-      // Draw furniture
-      objects.forEach(obj => {
-        drawFurniture(ctx, obj, zoom);
-      });
-
-      // Draw ghost
-      if (dragging) {
-        const bboxW = dragging.rotation % 180 === 0 ? dragging.w : dragging.h;
-        const bboxH = dragging.rotation % 180 === 0 ? dragging.h : dragging.w;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-        ctx.lineWidth = 2 / zoom;
-        ctx.setLineDash([5 / zoom, 5 / zoom]);
-        ctx.fillRect(dragging.snapX, dragging.snapY, bboxW, bboxH);
-        ctx.strokeRect(dragging.snapX, dragging.snapY, bboxW, bboxH);
-        ctx.setLineDash([]);
-      }
-
-      ctx.restore();
-    };
-
-    render();
+    ctx.restore();
   }, [objects, dragging, zoom, pan, selectedId]);
 
   function screenToWorld(screenX: number, screenY: number) {
@@ -566,6 +586,8 @@ export default function HouseLayoutDesigner() {
         movedObj.y + bboxH <= houseHeight;
 
       if (!overlap && insideHouse) {
+        const wasPlaced = objects.find(o => o.id === dragging.id)?.placed;
+        
         setHistory(prev => [...prev, objects]);
         setObjects(prev =>
           prev.map(o =>
@@ -574,6 +596,10 @@ export default function HouseLayoutDesigner() {
               : o
           )
         );
+        
+        if (!wasPlaced) {
+          // Object placed successfully
+        }
       }
       setDragging(null);
     }
@@ -661,92 +687,119 @@ export default function HouseLayoutDesigner() {
     setPan({ x: 150, y: 80 });
   }
 
+  const placedCount = objects.filter(o => o.placed).length;
+  const totalCount = objects.length;
+  const progress = (placedCount / totalCount) * 100;
+
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex overflow-hidden">
-      <div className="flex-1 flex flex-col">
-        {/* Toolbar */}
-        <div className="bg-slate-950/80 backdrop-blur-md border-b border-slate-700/50 p-4 flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg">
-              <Home className="w-5 h-5 text-white" />
-              <h1 className="text-xl font-bold text-white">House Designer</h1>
-            </div>
-            
-            <button
-              onClick={handleUndo}
-              disabled={history.length === 0}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
-            >
-              <Undo className="w-4 h-4" />
-              Undo
-            </button>
-            
-            {selectedId && (
+    <>
+      <div className="w-full h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex overflow-hidden">
+        <div className="flex-1 flex flex-col">
+          {/* Toolbar */}
+          <div className="bg-slate-950/80 backdrop-blur-md border-b border-slate-700/50 p-4 flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg shadow-lg">
+                <Home className="w-5 h-5 text-white" />
+                <h1 className="text-xl font-bold text-white">House Designer</h1>
+              </div>
+              
               <button
-                onClick={() => rotateObject(selectedId)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+                onClick={handleUndo}
+                disabled={history.length === 0}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
               >
-                <RotateCw className="w-4 h-4" />
-                Rotate
+                <Undo className="w-4 h-4" />
+                Undo
               </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleZoomOut}
-              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            
-            <div className="px-4 py-2 bg-slate-800 text-white rounded-lg min-w-[90px] text-center text-sm font-mono font-semibold shadow-lg">
-              {Math.round(zoom * 100)}%
+              
+              {selectedId && (
+                <div className="flex items-center gap-3">
+                  <div className="px-4 py-2 bg-slate-800 rounded-lg flex flex-col gap-1">
+                    <span className="text-white text-sm font-semibold">{objects.find(o => o.id === selectedId)?.label}</span>
+                    <span className="text-slate-400 text-xs">{objects.find(o => o.id === selectedId)?.type}</span>
+                  </div>
+                  <button
+                    onClick={() => rotateObject(selectedId)}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                    Rotate
+                  </button>
+                </div>
+              )}
             </div>
-            
-            <button
-              onClick={handleZoomIn}
-              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={handleResetView}
-              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
-              title="Reset View"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end mr-3">
+                <div className="flex items-center gap-2 text-white text-sm font-medium">
+                  <Target className="w-4 h-4 text-violet-400" />
+                  <span>{placedCount}/{totalCount} Placed</span>
+                </div>
+                <div className="w-32 h-2 bg-slate-800 rounded-full overflow-hidden mt-1">
+                  <div 
+                    className="h-full bg-gradient-to-r from-violet-500 to-purple-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+              
+              <button
+                onClick={handleZoomOut}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              
+              <div className="px-4 py-2 bg-slate-800 text-white rounded-lg min-w-[90px] text-center text-sm font-mono font-semibold shadow-lg">
+                {Math.round(zoom * 100)}%
+              </div>
+              
+              <button
+                onClick={handleZoomIn}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              
+              <button
+                onClick={handleResetView}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all shadow-lg hover:shadow-xl"
+                title="Reset View"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Info bar */}
-        <div className="bg-slate-900/60 backdrop-blur-sm border-b border-slate-700/30 px-6 py-3 text-sm text-slate-300 flex items-center gap-8 shadow-lg">
-          <span className="flex items-center gap-2 font-medium">
-            <Move className="w-4 h-4 text-violet-400" />
-            Drag furniture to arrange your rooms
-          </span>
-          <span className="text-slate-400">Press <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">R</kbd> to rotate</span>
-          <span className="text-slate-400">Hold <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">Space</kbd> or <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">Shift</kbd> to pan</span>
-          <span className="text-slate-400">Scroll to zoom</span>
-        </div>
+          {/* Info bar */}
+          <div className="bg-slate-900/60 backdrop-blur-sm border-b border-slate-700/30 px-6 py-3 text-sm text-slate-300 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-8">
+              <span className="flex items-center gap-2 font-medium">
+                <Move className="w-4 h-4 text-violet-400" />
+                Drag furniture to arrange your rooms
+              </span>
+              <span className="text-slate-400">Press <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">R</kbd> to rotate</span>
+              <span className="text-slate-400">Hold <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">Space</kbd> or <kbd className="px-2 py-1 bg-slate-800 rounded text-xs font-mono mx-1 border border-slate-700">Shift</kbd> to pan</span>
+            </div>
+          </div>
 
-        {/* Canvas */}
-        <div ref={containerRef} className="flex-1 relative overflow-hidden bg-slate-950">
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onWheel={handleWheel}
-            className={`w-full h-full ${isPanning ? 'cursor-grabbing' : dragging ? 'cursor-grabbing' : 'cursor-default'}`}
-          />
+          {/* Canvas */}
+          <div ref={containerRef} className="flex-1 relative overflow-hidden bg-slate-950">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onWheel={handleWheel}
+              className={`w-full h-full ${isPanning ? 'cursor-grabbing' : dragging ? 'cursor-grabbing' : 'cursor-default'}`}
+            />
+            
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
